@@ -4,14 +4,15 @@ import functions as fnc
 import numpy as np
 from scipy import interpolate
 from scipy import signal
+from scipy.optimize import curve_fit
 from scipy.fftpack import fft, ifft, fftfreq
 
 # Load and Display Image #
 im_loc = fnc.dict['fname']
 im = cv2.imread(im_loc, 0)
-cv2.imshow('Al/W', im)
-cv2.waitKey(0)
-
+fig, ax = plt.subplots()
+img = ax.imshow(im)
+plt.show()
 # Compute Histogram and normalize #
 plt.figure()
 counts, bins, bars = plt.hist(im.ravel(), bins=255, range=(0.0, 255.0), fc='k', ec='k')
@@ -78,12 +79,18 @@ YNEWCopy[np.abs(freqs) > 0.1] = 0
 # Now we transform back from Fourier space into real space, so we go back to using lower-case letters for our
 # variables.  This ynewfilt is now a low-pass filtered version of the original ynew variable.
 ynewfilt = ifft(YNEWCopy)
+ynewfilt = np.real(ynewfilt)
 
 # Find Peaks with filtered signal #
 signal.find_peaks(xnew, ynewfilt)
 peaksfilt, _ = signal.find_peaks(ynewfilt, height=(0.001, 1))
 
-plt.figure(figsize=(10, 5))
+
+## Perform a Gaussian Fit (to the last peak in the data ##
+popt, pcov = curve_fit(fnc.func, xnew[peaksfilt[-1]:], ynewfilt[peaksfilt[-1]:])
+
+fig = plt.figure(figsize=(10, 5))
+ax = fig.add_subplot(1, 1, 1)
 plt.plot(xnew, ynew, label='Original')
 plt.plot(xnew, ynewfilt, linewidth=2, label='Filtered')
 plt.plot(xnew[peaksfilt], ynewfilt[peaksfilt], 'rx', label='Peaks')
@@ -91,4 +98,10 @@ plt.xlabel('Intensity')
 plt.ylabel('Amplitude')
 plt.title("Filtered and Upsampled Signal with clean peaks")
 plt.legend(loc='best')
+
+## Add Plot of fitted gaussian ##
+ym = fnc.func(xnew, popt[0], popt[1])
+ax.plot(xnew, ym, c='r', label='Gaussian fit')
+ax.legend()
+
 plt.show()
